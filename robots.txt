@@ -1,0 +1,7 @@
+# Prefer: php -S localhost:8080 router.php
+# That route fills the Sitemap line from config.php base_url.
+User-agent: *
+Allow: /
+Disallow: /admin/
+
+Sitemap: http://localhost:8080/sitemap.xml
