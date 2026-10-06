@@ -260,6 +260,127 @@ function http_get_pinned(array $target, float $timeout): array
     return ['redirect' => null, 'body' => $body];
 }
 
+function generic_invite_title(string $name): bool
+{
+    $key = mb_strtolower(trim($name));
+    $generic = [
+        'whatsapp group invite',
+        'whatsapp.com',
+        'whatsapp',
+        'follow this link to join',
+        'join chat',
+        'you’ve been invited to join',
+        "you've been invited to join",
+    ];
+    return generic_scan_name($name) || in_array($key, $generic, true);
+}
+
+function generic_invite_description(string $text): bool
+{
+    $key = mb_strtolower(trim($text));
+    $generic = [
+        'whatsapp group invite',
+        'you are invited to join a whatsapp group',
+        'you’ve been invited to join',
+        "you've been invited to join",
+    ];
+    return $key === '' || mb_strlen($key) < 10 || in_array($key, $generic, true);
+}
+
+function placeholder_invite_image(string $url): bool
+{
+    $host = strtolower((string) (parse_url($url, PHP_URL_HOST) ?? ''));
+    return $host === 'static.whatsapp.net' || str_ends_with($host, '.static.whatsapp.net');
+}
+
+function meta_property_content(string $html, string $property): string
+{
+    $prop = preg_quote($property, '#');
+    $patterns = [
+        '#<meta\b[^>]*\bproperty=["\']' . $prop . '["\'][^>]*\bcontent=["\']([^"\']*)["\'][^>]*>#i',
+        '#<meta\b[^>]*\bcontent=["\']([^"\']*)["\'][^>]*\bproperty=["\']' . $prop . '["\'][^>]*>#i',
+    ];
+    foreach ($patterns as $pattern) {
+        if (preg_match($pattern, $html, $match)) {
+            return trim(html_entity_decode($match[1], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        }
+    }
+    return '';
+}
+
+function invite_heading_name(string $html): string
+{
+    if (!preg_match('/invited to join\s*(?:<br\s*\/?\s*>\s*)?[“"„«]([^“”"»<>]{2,120})[”"»]/iu', $html, $match)) {
+        return '';
+    }
+    $name = clean_scan_name(html_entity_decode($match[1], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    if ($name === '' || str_contains($name, '://')) {
+        return '';
+    }
+    return $name;
+}
+
+function invite_action_image(string $html): string
+{
+    if (!preg_match('#id=["\']action-icon["\'][\s\S]{0,2500}?<img\b[^>]*\bsrc=["\']([^"\']+)#i', $html, $match)) {
+        return '';
+    }
+    return trim(html_entity_decode($match[1], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+}
+
+/**
+ * Read the group name, description, and image from a public invite page.
+ * The default WhatsApp logo and the generic invite title are ignored.
+ *
+ * @return array{name: string, description: string, image_url: string}
+ */
+function extract_invite_preview(string $html): array
+{
+    $name = clean_scan_name(meta_property_content($html, 'og:title'));
+    if (generic_invite_title($name)) {
+        $name = invite_heading_name($html);
+    }
+    if (generic_invite_title($name)) {
+        $name = '';
+    }
+
+    $description = clean_text(meta_property_content($html, 'og:description'), 2000);
+    if (generic_invite_description($description)) {
+        $description = '';
+    }
+
+    $image = meta_property_content($html, 'og:image');
+    if ($image === '' || placeholder_invite_image($image)) {
+        $image = invite_action_image($html);
+    }
+    $normalized = normalize_image_url($image);
+    if (!is_string($normalized) || $normalized === '' || placeholder_invite_image($normalized) || strlen($normalized) > 500) {
+        $normalized = '';
+    }
+
+    return [
+        'name' => $name,
+        'description' => $description,
+        'image_url' => $normalized,
+    ];
+}
+
+function fetch_invite_preview(string $inviteUrl): array
+{
+    $normalized = normalize_invite_url($inviteUrl);
+    if ($normalized === null) {
+        throw new ScanException('Only https://chat.whatsapp.com/ or https://wa.me/ links are allowed.');
+    }
+
+    $preview = extract_invite_preview(fetch_public_html($normalized));
+    $preview['invite_url'] = $normalized;
+    if ($preview['name'] === '') {
+        throw new ScanException('This invite did not include a group name. Check the link and try again.');
+    }
+
+    return $preview;
+}
+
 function fetch_public_html(string $url): string
 {
     $deadline = microtime(true) + 10.0;

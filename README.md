@@ -70,6 +70,8 @@ Admin can approve, reject, or delete groups, add or delete categories, read repo
 
 **Add group** saves a group as approved immediately.
 
+**Fetch group** reads one `https://chat.whatsapp.com/` or `https://wa.me/` invite. It fills the group name, and the description and image when the public page includes them. The admin chooses a category, can edit the fields, and saves the group as approved. A missing or private page is refused. The default WhatsApp logo is not stored as the group image.
+
 **Scan** fetches one public `http` or `https` page (about 10 seconds, a few redirects) and lists invite links for import. It does not ask for a country or category. Each group takes a category from a nearby heading, breadcrumb, or section title. If that category is missing, import creates it. A nearby image URL is saved when the page has one. Groups without an image are still imported. Localhost, link-local, and private addresses are refused. Import saves new links as approved and skips duplicates. The scanner does not log in, send cookies, or try to bypass a login.
 
 Images are URLs only. There is no file upload.

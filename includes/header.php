@@ -49,6 +49,7 @@ if ($canonical !== '' && !$noindex) {
                 <a href="<?= e(href('admin/index.php')) ?>">Dashboard</a>
                 <a href="<?= e(href('admin/groups.php')) ?>">Groups</a>
                 <a href="<?= e(href('admin/add-group.php')) ?>">Add group</a>
+                <a href="<?= e(href('admin/fetch.php')) ?>">Fetch group</a>
                 <a href="<?= e(href('admin/scan.php')) ?>">Scan</a>
                 <a href="<?= e(href('admin/categories.php')) ?>">Categories</a>
                 <a href="<?= e(href('admin/reports.php')) ?>">Reports</a>
